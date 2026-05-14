@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>แฟ้มชุมชน - 7 เครื่องมือสำคัญในการทำงานชุมชน</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <style>
   :root{
     --primary:#0f766e; --primary-dark:#115e59; --primary-light:#5eead4;
@@ -91,10 +93,15 @@
   .tab.active{color:var(--primary);border-bottom-color:var(--primary)}
 
   /* Map */
-  #mapCanvas{width:100%;height:520px;background:#f0fdf4;border:1px solid var(--border);border-radius:8px;display:block;touch-action:none;cursor:crosshair}
+  #mapCanvas{width:100%;height:520px;background:#f0fdf4;border:1px solid var(--border);border-radius:8px;display:block;z-index:1}
   .map-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:12px}
   .map-legend-item{display:flex;align-items:center;gap:5px}
   .map-legend-dot{width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+  .leaflet-marker-icon-custom{background:transparent;border:none}
+  .custom-marker-pin{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);font-size:16px}
+  .custom-marker-pin > span{transform:rotate(45deg)}
+  .leaflet-popup-content{font-family:inherit;font-size:14px;margin:8px 12px}
+  .leaflet-popup-content b{color:var(--primary-dark)}
 
   /* Genogram */
   #genoCanvas{width:100%;height:520px;background:#fafafa;border:1px solid var(--border);border-radius:8px;display:block}
@@ -329,11 +336,12 @@
         <option value="meeting">☕ จุดรวมตัว</option>
       </select>
     </div>
+    <button class="btn btn-sm" onclick="locateMe()">📍 ตำแหน่งฉัน</button>
     <button class="btn btn-sm btn-primary" onclick="resetMapView()">🎯 รีเซ็ตมุมมอง</button>
     <span class="small" style="margin-left:auto">จุดทั้งหมด: <strong id="mapPointCount">0</strong></span>
   </div>
 
-  <svg id="mapCanvas" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet"></svg>
+  <div id="mapCanvas"></div>
 
   <div class="map-legend">
     <div class="map-legend-item"><span class="map-legend-dot" style="background:#3b82f6"></span> บ้าน</div>
@@ -517,8 +525,6 @@
   <div class="modal">
     <h3 id="mapModalTitle">เพิ่มจุดบนแผนที่</h3>
     <input type="hidden" id="mpId">
-    <input type="hidden" id="mpX">
-    <input type="hidden" id="mpY">
     <div class="form-row">
       <div class="form-group">
         <label>ชื่อจุด/บ้านเลขที่</label>
@@ -538,6 +544,20 @@
           <option value="risk">⚠️ จุดเสี่ยง</option>
           <option value="meeting">☕ จุดรวมตัว</option>
         </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>ละติจูด (Latitude)</label>
+        <input type="number" id="mpLat" step="0.000001" placeholder="16.789">
+      </div>
+      <div class="form-group">
+        <label>ลองจิจูด (Longitude)</label>
+        <input type="number" id="mpLng" step="0.000001" placeholder="103.210">
+      </div>
+      <div class="form-group" style="justify-content:flex-end">
+        <button class="btn btn-sm" type="button" onclick="useCurrentLocation()">📍 ใช้ตำแหน่งปัจจุบัน</button>
+        <button class="btn btn-sm" type="button" onclick="openCoordsInMaps()">🗺️ ดูใน Google Maps</button>
       </div>
     </div>
     <div class="form-group">
@@ -1295,122 +1315,135 @@ function renderDashboard(){
   document.getElementById('stat-life').textContent = c.lifeHistories.length+' ประวัติ';
 }
 
-/* ============ 1) Map ============ */
-function setMapMode(m){ mapMode = m; }
+/* ============ 1) Map (Leaflet + OpenStreetMap) ============ */
+// Default center: ตำบลคำใหญ่ อ.ห้วยเม็ก จ.กาฬสินธุ์
+const TAMBON_CENTER = [16.7796, 103.2086];
+const TAMBON_ZOOM = 13;
+
+let leafletMap = null;
+let markersLayer = null;
+let userLocationMarker = null;
+
+function setMapMode(m){
+  mapMode = m;
+  if(leafletMap){
+    if(m==='add'){
+      document.getElementById('mapCanvas').style.cursor='crosshair';
+    } else {
+      document.getElementById('mapCanvas').style.cursor='';
+    }
+  }
+}
+
+function initLeafletMap(){
+  if(leafletMap) return;
+  leafletMap = L.map('mapCanvas', { zoomControl:true }).setView(TAMBON_CENTER, TAMBON_ZOOM);
+
+  // Tile layers (สลับได้)
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'© OpenStreetMap contributors',
+    maxZoom:19
+  }).addTo(leafletMap);
+  const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution:'© Esri',
+    maxZoom:19
+  });
+  const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    attribution:'© OpenTopoMap',
+    maxZoom:17
+  });
+  L.control.layers({
+    'แผนที่ถนน (OSM)': osm,
+    'ภาพถ่ายดาวเทียม': satellite,
+    'ภูมิประเทศ': topo
+  }).addTo(leafletMap);
+
+  // Scale
+  L.control.scale({metric:true, imperial:false, position:'bottomleft'}).addTo(leafletMap);
+
+  markersLayer = L.layerGroup().addTo(leafletMap);
+
+  // Click on map to add point
+  leafletMap.on('click', function(e){
+    if(mapMode==='add'){
+      openMapModal(null, e.latlng.lat, e.latlng.lng);
+    }
+  });
+}
+
+function makeMarkerIcon(p){
+  const color = TYPE_COLORS[p.type]||'#64748b';
+  const icon = TYPE_ICONS[p.type]||'•';
+  return L.divIcon({
+    className:'leaflet-marker-icon-custom',
+    html:`<div class="custom-marker-pin" style="background:${color}"><span>${icon}</span></div>`,
+    iconSize:[34,34],
+    iconAnchor:[17,34],
+    popupAnchor:[0,-32]
+  });
+}
 
 function renderMap(){
   const c = currentCommunity();
   if(!c) return;
-  const svg = document.getElementById('mapCanvas');
-  svg.innerHTML = `
-    <defs>
-      <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-        <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#d1fae5" stroke-width="1"/>
-      </pattern>
-    </defs>
-    <rect width="100%" height="100%" fill="url(#grid)"/>
-    <path d="M 0 300 Q 200 250 400 320 T 1000 280" stroke="#22c55e" stroke-width="2" fill="none" opacity=".4"/>
-    <text x="20" y="30" fill="#64748b" font-size="14" font-family="inherit">คลิกบนแผนที่เพื่อเพิ่มจุด · เลือกโหมดด้านบน</text>
-  `;
-  c.mapPoints.forEach(p=>drawMapPoint(p));
-  document.getElementById('mapPointCount').textContent = c.mapPoints.length;
-  renderMapPointsList();
+  initLeafletMap();
+  setTimeout(()=>leafletMap.invalidateSize(), 50);
 
-  svg.onclick = (e)=>{
-    if(e.target.closest('.map-point-group')) return;
-    const pt = svgPoint(svg, e);
-    if(mapMode==='add'){
-      openMapModal(null, pt.x, pt.y);
-    }
-  };
-}
+  markersLayer.clearLayers();
+  const validPoints = c.mapPoints.filter(p=>typeof p.lat==='number' && typeof p.lng==='number');
 
-function svgPoint(svg, evt){
-  const rect = svg.getBoundingClientRect();
-  const vb = svg.viewBox.baseVal;
-  const x = (evt.clientX - rect.left) * (vb.width / rect.width);
-  const y = (evt.clientY - rect.top) * (vb.height / rect.height);
-  return {x:Math.round(x), y:Math.round(y)};
-}
+  validPoints.forEach(p=>{
+    const marker = L.marker([p.lat, p.lng], {
+      icon: makeMarkerIcon(p),
+      draggable: mapMode==='move'
+    }).addTo(markersLayer);
 
-function drawMapPoint(p){
-  const svg = document.getElementById('mapCanvas');
-  const color = TYPE_COLORS[p.type] || '#64748b';
-  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-  g.setAttribute('class','map-point-group');
-  g.setAttribute('data-id', p.id);
-  g.setAttribute('transform',`translate(${p.x},${p.y})`);
-  g.style.cursor='pointer';
+    const tagsHtml = p.tags?.length ? '<br><small>'+p.tags.map(escapeHtml).join(' · ')+'</small>' : '';
+    marker.bindPopup(
+      `<b>${TYPE_ICONS[p.type]||''} ${escapeHtml(p.name)}</b><br>
+       <span style="color:#64748b">${TYPE_LABELS[p.type]||''}</span>${tagsHtml}
+       ${p.note?'<br>'+escapeHtml(p.note):''}
+       <br><br>
+       <a href="#" onclick="event.preventDefault();openMapModalById('${p.id}')">✏️ แก้ไข</a> ·
+       <a href="https://www.google.com/maps?q=${p.lat},${p.lng}" target="_blank">🗺️ Google Maps</a> ·
+       <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank">🧭 นำทาง</a>`
+    );
 
-  // Shadow
-  const shadow = document.createElementNS('http://www.w3.org/2000/svg','circle');
-  shadow.setAttribute('cx',0); shadow.setAttribute('cy',2);
-  shadow.setAttribute('r',12); shadow.setAttribute('fill','rgba(0,0,0,.15)');
-  g.appendChild(shadow);
+    marker.on('click', ()=>{
+      if(mapMode==='delete'){
+        if(confirm('ลบจุด "'+p.name+'" ?')){
+          c.mapPoints = c.mapPoints.filter(x=>x.id!==p.id);
+          saveState(); renderMap();
+        }
+      }
+    });
 
-  // Main dot
-  const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
-  dot.setAttribute('cx',0); dot.setAttribute('cy',0);
-  dot.setAttribute('r',12); dot.setAttribute('fill',color);
-  dot.setAttribute('stroke','#fff'); dot.setAttribute('stroke-width',2);
-  g.appendChild(dot);
+    marker.on('dragend', ()=>{
+      const ll = marker.getLatLng();
+      p.lat = ll.lat;
+      p.lng = ll.lng;
+      saveState();
+      toast('ย้ายจุดแล้ว');
+    });
+  });
 
-  // Icon
-  const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-  txt.setAttribute('x',0); txt.setAttribute('y',5);
-  txt.setAttribute('text-anchor','middle');
-  txt.setAttribute('font-size','14');
-  txt.textContent = TYPE_ICONS[p.type]||'•';
-  g.appendChild(txt);
-
-  // Label
-  if(p.name){
-    const label = document.createElementNS('http://www.w3.org/2000/svg','text');
-    label.setAttribute('x',0); label.setAttribute('y',-18);
-    label.setAttribute('text-anchor','middle');
-    label.setAttribute('font-size','11');
-    label.setAttribute('fill','#0f172a');
-    label.setAttribute('font-family','inherit');
-    label.setAttribute('font-weight','600');
-    label.textContent = p.name.length>20 ? p.name.slice(0,20)+'…' : p.name;
-    g.appendChild(label);
+  // Fit bounds if multiple points exist
+  if(validPoints.length>1){
+    const bounds = L.latLngBounds(validPoints.map(p=>[p.lat,p.lng]));
+    leafletMap.fitBounds(bounds, {padding:[40,40], maxZoom:17});
+  } else if(validPoints.length===1){
+    leafletMap.setView([validPoints[0].lat, validPoints[0].lng], 16);
   }
 
-  g.onclick = (e)=>{
-    e.stopPropagation();
-    if(mapMode==='delete'){
-      if(confirm('ลบจุด "'+p.name+'" ?')){
-        const c = currentCommunity();
-        c.mapPoints = c.mapPoints.filter(x=>x.id!==p.id);
-        saveState(); renderMap();
-      }
-    }else if(mapMode==='move'){
-      svg.style.cursor='move';
-      const move = (ev)=>{
-        const pt = svgPoint(svg, ev);
-        g.setAttribute('transform',`translate(${pt.x},${pt.y})`);
-        p.x = pt.x; p.y = pt.y;
-      };
-      const up = ()=>{
-        document.removeEventListener('mousemove',move);
-        document.removeEventListener('mouseup',up);
-        svg.style.cursor='crosshair';
-        saveState();
-      };
-      document.addEventListener('mousemove',move);
-      document.addEventListener('mouseup',up);
-    }else{
-      openMapModal(p);
-    }
-  };
-  svg.appendChild(g);
+  document.getElementById('mapPointCount').textContent = c.mapPoints.length;
+  renderMapPointsList();
 }
 
-function openMapModal(p, x, y){
+function openMapModal(p, lat, lng){
   document.getElementById('mapModalTitle').textContent = p?'แก้ไขจุด':'เพิ่มจุดบนแผนที่';
   document.getElementById('mpId').value = p?.id || '';
-  document.getElementById('mpX').value = p?.x ?? x;
-  document.getElementById('mpY').value = p?.y ?? y;
+  document.getElementById('mpLat').value = p?.lat ?? lat ?? '';
+  document.getElementById('mpLng').value = p?.lng ?? lng ?? '';
   document.getElementById('mpName').value = p?.name || '';
   document.getElementById('mpType').value = p?.type || document.getElementById('mapPointType').value;
   document.getElementById('mpNote').value = p?.note || '';
@@ -1431,10 +1464,12 @@ function openMapModal(p, x, y){
 function saveMapPoint(){
   const c = currentCommunity();
   const id = document.getElementById('mpId').value;
+  const lat = parseFloat(document.getElementById('mpLat').value);
+  const lng = parseFloat(document.getElementById('mpLng').value);
+  if(isNaN(lat) || isNaN(lng)){ alert('กรุณากรอกพิกัด GPS ที่ถูกต้อง'); return; }
   const data = {
     id: id || uid(),
-    x: parseFloat(document.getElementById('mpX').value),
-    y: parseFloat(document.getElementById('mpY').value),
+    lat, lng,
     name: document.getElementById('mpName').value.trim()||'(ไม่ระบุ)',
     type: document.getElementById('mpType').value,
     note: document.getElementById('mpNote').value.trim(),
@@ -1468,7 +1503,7 @@ function renderMapPointsList(){
   const c = currentCommunity();
   const el = document.getElementById('mapPointsList');
   if(!c.mapPoints.length){
-    el.innerHTML = '<div class="empty-state"><div class="icon">🗺️</div>ยังไม่มีจุดบนแผนที่ — คลิกบนแผนที่เพื่อเพิ่มจุดแรก</div>';
+    el.innerHTML = '<div class="empty-state"><div class="icon">🗺️</div>ยังไม่มีจุดบนแผนที่ — คลิกบนแผนที่ หรือกด "📍 ใช้ตำแหน่งปัจจุบัน" เพื่อเพิ่มจุดแรก</div>';
     return;
   }
   el.innerHTML = '<div class="card-list">'+c.mapPoints.map(p=>`
@@ -1476,9 +1511,11 @@ function renderMapPointsList(){
       <h4>${TYPE_ICONS[p.type]||'•'} ${escapeHtml(p.name)} <span class="badge">${TYPE_LABELS[p.type]||''}</span></h4>
       ${p.tags?.length?`<div class="meta">${p.tags.map(t=>`<span class="pill">${escapeHtml(t)}</span>`).join(' ')}</div>`:''}
       ${p.note?`<div class="desc">${escapeHtml(p.note)}</div>`:''}
-      <div class="meta small">พิกัด: ${Math.round(p.x)}, ${Math.round(p.y)}</div>
+      <div class="meta small">📍 ${p.lat?.toFixed(6)||'?'}, ${p.lng?.toFixed(6)||'?'}</div>
       <div class="actions">
-        <button class="btn btn-sm" onclick="openMapModalById('${p.id}')">✏️</button>
+        <button class="btn btn-sm" onclick="zoomToPoint('${p.id}')" title="ซูมหา">🔍</button>
+        <button class="btn btn-sm" onclick="openInGoogleMaps('${p.id}')" title="เปิดใน Google Maps">🗺️</button>
+        <button class="btn btn-sm" onclick="openMapModalById('${p.id}')" title="แก้ไข">✏️</button>
       </div>
     </div>
   `).join('')+'</div>';
@@ -1489,6 +1526,58 @@ function openMapModalById(id){
   if(p) openMapModal(p);
 }
 
+function zoomToPoint(id){
+  const p = currentCommunity().mapPoints.find(x=>x.id===id);
+  if(p && leafletMap){
+    leafletMap.setView([p.lat, p.lng], 18);
+  }
+}
+
+function openInGoogleMaps(id){
+  const p = currentCommunity().mapPoints.find(x=>x.id===id);
+  if(p) window.open(`https://www.google.com/maps?q=${p.lat},${p.lng}`, '_blank');
+}
+
+function openCoordsInMaps(){
+  const lat = parseFloat(document.getElementById('mpLat').value);
+  const lng = parseFloat(document.getElementById('mpLng').value);
+  if(isNaN(lat)||isNaN(lng)){ alert('กรุณากรอกพิกัดก่อน'); return; }
+  window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
+}
+
+function useCurrentLocation(){
+  if(!navigator.geolocation){ alert('เบราว์เซอร์ไม่รองรับ GPS'); return; }
+  toast('📡 กำลังค้นหาตำแหน่ง...');
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{
+      document.getElementById('mpLat').value = pos.coords.latitude.toFixed(6);
+      document.getElementById('mpLng').value = pos.coords.longitude.toFixed(6);
+      toast('📍 ใช้ตำแหน่งปัจจุบันแล้ว (±'+Math.round(pos.coords.accuracy)+'ม.)');
+    },
+    (err)=>alert('ไม่สามารถระบุตำแหน่ง: '+err.message+'\n(ต้องอนุญาตการเข้าถึงตำแหน่งและใช้ HTTPS หรือ localhost)'),
+    {enableHighAccuracy:true, timeout:15000, maximumAge:0}
+  );
+}
+
+function locateMe(){
+  if(!navigator.geolocation){ alert('เบราว์เซอร์ไม่รองรับ GPS'); return; }
+  if(!leafletMap) initLeafletMap();
+  toast('📡 กำลังค้นหาตำแหน่ง...');
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{
+      const {latitude, longitude, accuracy} = pos.coords;
+      if(userLocationMarker) leafletMap.removeLayer(userLocationMarker);
+      userLocationMarker = L.circleMarker([latitude, longitude], {
+        radius:8, color:'#2563eb', fillColor:'#3b82f6', fillOpacity:.7, weight:3
+      }).bindPopup('คุณอยู่ที่นี่ (±'+Math.round(accuracy)+'ม.)').addTo(leafletMap);
+      leafletMap.setView([latitude, longitude], 17);
+      toast('📍 พบตำแหน่งของคุณแล้ว');
+    },
+    (err)=>alert('ไม่สามารถระบุตำแหน่ง: '+err.message),
+    {enableHighAccuracy:true, timeout:15000}
+  );
+}
+
 function clearMap(){
   if(confirm('ล้างจุดทั้งหมดบนแผนที่?')){
     currentCommunity().mapPoints = [];
@@ -1497,7 +1586,7 @@ function clearMap(){
 }
 
 function resetMapView(){
-  document.getElementById('mapCanvas').setAttribute('viewBox','0 0 1000 600');
+  if(leafletMap) leafletMap.setView(TAMBON_CENTER, TAMBON_ZOOM);
 }
 
 /* ============ 2) Genogram ============ */
