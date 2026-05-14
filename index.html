@@ -172,6 +172,45 @@
     body{background:#fff}
   }
 
+  /* Auth screens */
+  #authScreen{position:fixed;inset:0;background:linear-gradient(135deg,#0f766e,#115e59);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+  .auth-card{background:#fff;border-radius:16px;padding:32px 28px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.25);max-height:95vh;overflow-y:auto}
+  .auth-card h1{margin:0 0 4px;font-size:22px;color:var(--primary-dark);text-align:center}
+  .auth-card .sub{text-align:center;color:var(--muted);font-size:14px;margin-bottom:20px}
+  .auth-tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:16px}
+  .auth-tab{flex:1;padding:10px;text-align:center;cursor:pointer;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px}
+  .auth-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+  .auth-form{display:none}
+  .auth-form.active{display:block}
+  .auth-form .form-group{margin-bottom:12px}
+  .auth-form input,.auth-form select{width:100%}
+  .auth-error{color:var(--danger);font-size:13px;margin-top:6px;min-height:18px}
+  .auth-success{color:var(--success);font-size:13px;margin-top:6px;min-height:18px}
+  .role-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .role-option{border:2px solid var(--border);border-radius:8px;padding:10px 6px;text-align:center;cursor:pointer;font-size:12px;font-weight:600;background:#fff}
+  .role-option.active{border-color:var(--primary);background:#ecfdf5;color:var(--primary-dark)}
+  .role-option .icon{font-size:20px;margin-bottom:2px}
+  .auth-link{color:var(--primary);cursor:pointer;font-size:13px;text-decoration:underline}
+  .auth-tag{display:inline-block;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:600;margin-left:6px}
+
+  /* User badge */
+  .user-badge{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);padding:4px 12px;border-radius:999px;font-size:13px;cursor:pointer;border:1px solid rgba(255,255,255,.3)}
+  .user-badge:hover{background:rgba(255,255,255,.25)}
+  .user-menu{position:absolute;top:60px;right:20px;background:#fff;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:8px;min-width:200px;display:none;z-index:150}
+  .user-menu.show{display:block}
+  .user-menu-item{padding:8px 12px;cursor:pointer;border-radius:6px;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px}
+  .user-menu-item:hover{background:var(--surface-2)}
+  .user-menu-divider{height:1px;background:var(--border);margin:4px 0}
+
+  /* Stats row */
+  .public-stats{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;font-size:13px}
+  .ps-item{background:var(--surface-2);padding:8px 14px;border-radius:8px;text-align:center}
+  .ps-item .n{font-weight:700;color:var(--primary);font-size:18px;display:block}
+  .ps-item .l{font-size:11px;color:var(--muted)}
+
+  /* Logs table */
+  .logs-table{max-height:400px;overflow-y:auto}
+
   /* Helpers */
   .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:var(--surface-2);color:var(--muted)}
   .pill-warning{background:#fef3c7;color:#92400e}
@@ -187,6 +226,141 @@
 </style>
 </head>
 <body>
+
+<!-- ============ AUTH SCREEN ============ -->
+<div id="authScreen">
+  <div class="auth-card">
+    <h1>📋 แฟ้มชุมชน</h1>
+    <div class="sub">ตำบลคำใหญ่ อ.ห้วยเม็ก จ.กาฬสินธุ์</div>
+
+    <!-- Tabs -->
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="showAuthForm('login')">เข้าสู่ระบบ</div>
+      <div class="auth-tab" onclick="showAuthForm('register')">สมัครใช้งาน</div>
+    </div>
+
+    <!-- Public stats -->
+    <div class="public-stats" id="publicStats"></div>
+
+    <!-- Login form -->
+    <div class="auth-form active" id="loginForm">
+      <div class="form-group">
+        <label>อีเมล</label>
+        <input type="email" id="liEmail" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>รหัสผ่าน</label>
+        <input type="password" id="liPassword" autocomplete="current-password">
+      </div>
+      <div class="auth-error" id="liError"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="doLogin()">เข้าสู่ระบบ</button>
+      <div style="text-align:center;margin-top:12px">
+        <span class="auth-link" onclick="showAuthForm('forgot')">ลืมรหัสผ่าน?</span>
+      </div>
+      <div style="margin-top:14px;padding:10px;background:var(--surface-2);border-radius:8px;font-size:12px;color:var(--muted)">
+        💡 ครั้งแรก: หากยังไม่มีบัญชี admin ในระบบ ผู้สมัครคนแรกที่เลือก "จนท.รพ.สต." จะกลายเป็นผู้ดูแลโดยอัตโนมัติ
+      </div>
+    </div>
+
+    <!-- Register form -->
+    <div class="auth-form" id="registerForm">
+      <div class="form-group">
+        <label>บทบาท *</label>
+        <div class="role-grid">
+          <div class="role-option" data-role="admin" onclick="selectRole('admin')">
+            <div class="icon">🏥</div>จนท.รพ.สต.
+          </div>
+          <div class="role-option active" data-role="volunteer" onclick="selectRole('volunteer')">
+            <div class="icon">👥</div>อสม.
+          </div>
+          <div class="role-option" data-role="leader" onclick="selectRole('leader')">
+            <div class="icon">⭐</div>ผู้นำชุมชน
+          </div>
+        </div>
+        <input type="hidden" id="reRole" value="volunteer">
+      </div>
+      <div class="form-group">
+        <label>ชื่อ-นามสกุล *</label>
+        <input type="text" id="reName">
+      </div>
+      <div class="form-group">
+        <label>อีเมล *</label>
+        <input type="email" id="reEmail">
+      </div>
+      <div class="form-group">
+        <label>เบอร์โทร</label>
+        <input type="tel" id="rePhone" placeholder="08X-XXX-XXXX">
+      </div>
+      <div class="form-group" id="reVillageGroup">
+        <label>หมู่บ้านที่รับผิดชอบ</label>
+        <select id="reVillage"></select>
+      </div>
+      <div class="form-group">
+        <label>รหัสผ่าน * (อย่างน้อย 6 ตัวอักษร)</label>
+        <input type="password" id="rePassword" autocomplete="new-password">
+      </div>
+      <div class="form-group" id="reSecretGroup" style="display:none">
+        <label>รหัสลับ Admin ครั้งแรก (เลือกกรอก)</label>
+        <input type="text" id="reSecret" placeholder="กรอกรหัสลับเพื่อเป็น admin ทันที">
+        <div class="small">เว้นว่างได้หากต้องการรอการอนุมัติ</div>
+      </div>
+      <div class="auth-error" id="reError"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="doRegister()">สมัครใช้งาน</button>
+    </div>
+
+    <!-- Forgot password form -->
+    <div class="auth-form" id="forgotForm">
+      <h3 style="margin-top:0">รีเซ็ตรหัสผ่าน</h3>
+      <div id="forgotStep1">
+        <p class="small">กรอกอีเมลที่ลงทะเบียนไว้ ระบบจะส่งรหัส OTP 6 หลักไปทางอีเมล</p>
+        <div class="form-group">
+          <label>อีเมล</label>
+          <input type="email" id="fpEmail">
+        </div>
+        <div class="auth-error" id="fpError"></div>
+        <button class="btn btn-primary" style="width:100%" onclick="requestReset()">ส่ง OTP</button>
+      </div>
+      <div id="forgotStep2" style="display:none">
+        <p class="auth-success" id="fpInfo"></p>
+        <div class="form-group">
+          <label>รหัส OTP (6 หลัก)</label>
+          <input type="text" id="fpOtp" maxlength="6" pattern="[0-9]*">
+        </div>
+        <div class="form-group">
+          <label>รหัสผ่านใหม่</label>
+          <input type="password" id="fpNew">
+        </div>
+        <div class="auth-error" id="fpError2"></div>
+        <button class="btn btn-primary" style="width:100%" onclick="confirmReset()">ยืนยันรีเซ็ต</button>
+      </div>
+      <div style="text-align:center;margin-top:12px">
+        <span class="auth-link" onclick="showAuthForm('login')">← กลับไปหน้าเข้าสู่ระบบ</span>
+      </div>
+    </div>
+
+    <!-- Pending approval screen -->
+    <div class="auth-form" id="pendingForm">
+      <div style="text-align:center;padding:20px">
+        <div style="font-size:48px;margin-bottom:12px">⏳</div>
+        <h3>รออนุมัติ</h3>
+        <p class="small">บัญชีของคุณลงทะเบียนสำเร็จ แต่ยังรอ จนท.รพ.สต. อนุมัติ<br>หลังอนุมัติคุณจะได้รับอีเมลแจ้งเตือน</p>
+        <button class="btn" onclick="showAuthForm('login')">กลับไปเข้าสู่ระบบ</button>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:var(--muted)">
+      ระบบโดย <strong>โกมาตร จึงเสถียรทรัพย์</strong> · 7 เครื่องมือสำคัญในการทำงานชุมชน
+    </div>
+  </div>
+</div>
+
+<!-- User menu (header dropdown) -->
+<div class="user-menu" id="userMenu">
+  <div class="user-menu-item" id="adminMenuLink" onclick="showAdminPanel();toggleUserMenu()">👮 จัดการผู้ใช้</div>
+  <div class="user-menu-item" id="logsMenuLink" onclick="showLogsPanel();toggleUserMenu()">📜 บันทึกการใช้งาน</div>
+  <div class="user-menu-divider"></div>
+  <div class="user-menu-item" onclick="doLogout()">🚪 ออกจากระบบ</div>
+</div>
 
 <header>
   <div class="header-inner">
@@ -209,6 +383,10 @@
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">⬆ นำเข้า</button>
       <button class="btn btn-ghost btn-sm" onclick="resetToTambon()" title="โหลด 12 หมู่บ้านตำบลคำใหญ่ใหม่">🔄 รีเซ็ต</button>
       <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
+      <div class="user-badge" id="userBadge" onclick="toggleUserMenu()" style="display:none">
+        <span id="userBadgeIcon">👤</span>
+        <span id="userBadgeName">—</span>
+      </div>
     </div>
   </div>
 </header>
@@ -465,6 +643,56 @@
   </div>
 
   <div id="historyTimeline" class="timeline"></div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminView" class="tool-view">
+  <div class="tool-header">
+    <div>
+      <h2>👮 จัดการผู้ใช้งาน <span class="pill">เฉพาะ จนท.รพ.สต.</span></h2>
+      <div class="desc">อนุมัติบัญชีใหม่ เปลี่ยนสิทธิ์ ระงับการใช้งาน</div>
+    </div>
+    <div class="tool-toolbar">
+      <button class="btn btn-sm" onclick="showHome()">← กลับ</button>
+      <button class="btn btn-sm" onclick="loadAdminPanel()">🔄 รีเฟรช</button>
+    </div>
+  </div>
+  <div class="stat-block" id="userStats"></div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchAdminTab(event,'pending')">⏳ รออนุมัติ <span id="pendingCount"></span></div>
+    <div class="tab" onclick="switchAdminTab(event,'all')">👥 ผู้ใช้ทั้งหมด</div>
+  </div>
+  <div id="adminPendingTab" class="card-list"></div>
+  <div id="adminAllTab" style="display:none">
+    <table class="data-table">
+      <thead>
+        <tr><th>ชื่อ</th><th>อีเมล</th><th>บทบาท</th><th>หมู่บ้าน</th><th>สถานะ</th><th>เข้าใช้ครั้งล่าสุด</th><th>จำนวนครั้ง</th><th>การจัดการ</th></tr>
+      </thead>
+      <tbody id="allUsersTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- LOGS PANEL -->
+<div id="logsView" class="tool-view">
+  <div class="tool-header">
+    <div>
+      <h2>📜 บันทึกการใช้งาน <span class="pill">เฉพาะ จนท.รพ.สต.</span></h2>
+      <div class="desc">ติดตามการเข้าใช้ระบบและกิจกรรมต่างๆ</div>
+    </div>
+    <div class="tool-toolbar">
+      <button class="btn btn-sm" onclick="showHome()">← กลับ</button>
+      <button class="btn btn-sm" onclick="loadLogsPanel()">🔄 รีเฟรช</button>
+    </div>
+  </div>
+  <div class="logs-table">
+    <table class="data-table">
+      <thead>
+        <tr><th>เวลา</th><th>ผู้ใช้</th><th>บทบาท</th><th>การกระทำ</th><th>รายละเอียด</th></tr>
+      </thead>
+      <tbody id="logsTable"></tbody>
+    </table>
+  </div>
 </div>
 
 <!-- TOOL 7: ประวัติชีวิต -->
@@ -927,11 +1155,19 @@
 const STORAGE_KEY = 'communityFileApp';
 const SYNC_URL_KEY = 'communityFileAppSyncUrl';
 const AUTO_SYNC_KEY = 'communityFileAppAutoSync';
+const TOKEN_KEY = 'communityFileAppToken';
+const USER_KEY = 'communityFileAppUser';
 
 let syncUrl = localStorage.getItem(SYNC_URL_KEY) || '';
 let autoSync = localStorage.getItem(AUTO_SYNC_KEY) === 'true';
 let syncDebounce = null;
 let syncing = false;
+
+let currentUser = null;
+let authToken = localStorage.getItem(TOKEN_KEY) || '';
+
+const ROLE_LABELS = { admin:'จนท.รพ.สต.', volunteer:'อสม.', leader:'ผู้นำชุมชน' };
+const ROLE_ICONS = { admin:'🏥', volunteer:'👥', leader:'⭐' };
 const THAI_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
                      'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
@@ -1020,13 +1256,14 @@ function scheduleSync(){
 
 async function pushToSheet(silent){
   if(!syncUrl){ if(!silent) alert('ยังไม่ได้ตั้งค่า Web App URL'); return; }
+  if(!authToken){ if(!silent) alert('กรุณาเข้าสู่ระบบก่อน'); return; }
   if(syncing) return;
   syncing = true;
   setSyncStatus('syncing');
   try{
     const resp = await fetch(syncUrl, {
       method:'POST',
-      body: JSON.stringify({action:'push', data: state}),
+      body: JSON.stringify({action:'push', data: state, token: authToken}),
       headers: {'Content-Type':'text/plain;charset=utf-8'},
       redirect: 'follow'
     });
@@ -1049,11 +1286,12 @@ async function pushToSheet(silent){
 
 async function pullFromSheet(){
   if(!syncUrl){ alert('ยังไม่ได้ตั้งค่า Web App URL — กดปุ่ม ☁️ Sheets เพื่อตั้งค่า'); return; }
+  if(!authToken){ alert('กรุณาเข้าสู่ระบบก่อน'); return; }
   if(!confirm('⚠️ ดึงข้อมูลจาก Google Sheet มาแทนข้อมูลปัจจุบัน?\n(ข้อมูลในแอพปัจจุบันจะถูกแทนที่)')) return;
   syncing = true;
   setSyncStatus('syncing');
   try{
-    const resp = await fetch(syncUrl+'?action=pull', {redirect:'follow'});
+    const resp = await fetch(syncUrl+'?action=pull&token='+encodeURIComponent(authToken), {redirect:'follow'});
     const result = await resp.json();
     if(result.ok && result.data){
       // ถ้า Sheet ยังว่าง ให้คงข้อมูลปัจจุบันไว้
@@ -1123,11 +1361,12 @@ async function testSyncConnection(){
 
 async function clearSheetData(){
   if(!syncUrl){ alert('ยังไม่ได้ตั้งค่า URL'); return; }
+  if(!authToken){ alert('กรุณาเข้าสู่ระบบ'); return; }
   if(!confirm('⚠️ ล้างข้อมูลทั้งหมดใน Google Sheet?\n(ข้อมูลในแอพปัจจุบันจะยังอยู่ — สามารถ push กลับขึ้นไปได้)')) return;
   try{
     const resp = await fetch(syncUrl, {
       method:'POST',
-      body: JSON.stringify({action:'clear'}),
+      body: JSON.stringify({action:'clear', token:authToken}),
       headers: {'Content-Type':'text/plain;charset=utf-8'},
       redirect:'follow'
     });
@@ -2279,6 +2518,426 @@ function deleteLife(){
   }
 }
 
+/* ============ Authentication ============ */
+async function apiCall(action, payload){
+  if(!syncUrl){ throw new Error('ยังไม่ได้ตั้งค่า URL ของ Apps Script'); }
+  const body = Object.assign({action}, payload||{});
+  const resp = await fetch(syncUrl, {
+    method:'POST',
+    body: JSON.stringify(body),
+    headers: {'Content-Type':'text/plain;charset=utf-8'},
+    redirect:'follow'
+  });
+  const result = await resp.json();
+  if(!result.ok) throw new Error(result.error||'ผิดพลาด');
+  return result;
+}
+
+async function apiGet(action, params){
+  if(!syncUrl) throw new Error('ยังไม่ได้ตั้งค่า URL');
+  const qs = Object.entries(Object.assign({action}, params||{})).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&');
+  const resp = await fetch(syncUrl+'?'+qs, {redirect:'follow'});
+  const result = await resp.json();
+  if(!result.ok) throw new Error(result.error||'ผิดพลาด');
+  return result;
+}
+
+function showAuthForm(name){
+  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f=>f.classList.remove('active'));
+  const tabs = {login:0, register:1, forgot:0, pending:0};
+  document.querySelectorAll('.auth-tab')[tabs[name]||0]?.classList.add('active');
+  document.getElementById(name+'Form').classList.add('active');
+  // Clear errors
+  document.querySelectorAll('.auth-error,.auth-success').forEach(e=>e.textContent='');
+  if(name==='register'){
+    populateVillageSelect();
+    updateSecretFieldVisibility();
+  }
+  if(name==='forgot'){
+    document.getElementById('forgotStep1').style.display='block';
+    document.getElementById('forgotStep2').style.display='none';
+  }
+}
+
+function selectRole(role){
+  document.getElementById('reRole').value = role;
+  document.querySelectorAll('.role-option').forEach(o=>{
+    o.classList.toggle('active', o.dataset.role===role);
+  });
+  document.getElementById('reVillageGroup').style.display = (role==='volunteer'||role==='leader')?'block':'none';
+  updateSecretFieldVisibility();
+}
+
+function updateSecretFieldVisibility(){
+  const role = document.getElementById('reRole').value;
+  document.getElementById('reSecretGroup').style.display = (role==='admin')?'block':'none';
+}
+
+function populateVillageSelect(){
+  const sel = document.getElementById('reVillage');
+  if(!sel) return;
+  const opts = ['<option value="">— ทั้งตำบล —</option>'];
+  if(state && state.communities){
+    state.communities.forEach(c=>opts.push(`<option value="${c.id}">${escapeHtml(c.name)}</option>`));
+  }
+  sel.innerHTML = opts.join('');
+}
+
+async function doLogin(){
+  const email = document.getElementById('liEmail').value.trim();
+  const password = document.getElementById('liPassword').value;
+  const err = document.getElementById('liError');
+  err.textContent='';
+  if(!email||!password){ err.textContent='กรุณากรอกอีเมลและรหัสผ่าน'; return; }
+  if(!syncUrl){ err.textContent='ยังไม่ได้ตั้งค่า URL ของ Apps Script — กรุณาตั้งค่าก่อน'; openSyncModal(); return; }
+  err.textContent='⏳ กำลังเข้าสู่ระบบ...';
+  try{
+    const result = await apiCall('login', {email, password, userAgent: navigator.userAgent.slice(0,150)});
+    currentUser = result.user;
+    authToken = result.user.token;
+    localStorage.setItem(TOKEN_KEY, authToken);
+    localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+    err.textContent='';
+    hideAuthScreen();
+    toast('✅ ยินดีต้อนรับ '+currentUser.name);
+  }catch(e){
+    err.textContent = '❌ '+e.message;
+  }
+}
+
+async function doRegister(){
+  const data = {
+    role: document.getElementById('reRole').value,
+    name: document.getElementById('reName').value.trim(),
+    email: document.getElementById('reEmail').value.trim(),
+    phone: document.getElementById('rePhone').value.trim(),
+    village: document.getElementById('reVillage')?.value || '',
+    password: document.getElementById('rePassword').value,
+    adminSecret: document.getElementById('reSecret')?.value || ''
+  };
+  const err = document.getElementById('reError');
+  err.textContent='';
+  if(!data.name||!data.email||!data.password){ err.textContent='กรุณากรอกข้อมูลให้ครบ'; return; }
+  if(data.password.length<6){ err.textContent='รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'; return; }
+  if(!syncUrl){ err.textContent='ยังไม่ได้ตั้งค่า URL — กรุณาตั้งค่าก่อน'; openSyncModal(); return; }
+  err.textContent='⏳ กำลังลงทะเบียน...';
+  try{
+    const result = await apiCall('register', data);
+    if(result.status==='approved'){
+      err.textContent='';
+      toast('✅ '+result.message);
+      // Auto-login
+      document.getElementById('liEmail').value = data.email;
+      document.getElementById('liPassword').value = data.password;
+      showAuthForm('login');
+      doLogin();
+    } else {
+      showAuthForm('pending');
+    }
+  }catch(e){
+    err.textContent = '❌ '+e.message;
+  }
+}
+
+async function requestReset(){
+  const email = document.getElementById('fpEmail').value.trim();
+  const err = document.getElementById('fpError');
+  err.textContent='';
+  if(!email){ err.textContent='กรุณากรอกอีเมล'; return; }
+  err.textContent='⏳ กำลังส่ง OTP...';
+  try{
+    const result = await apiCall('request_reset', {email});
+    err.textContent='';
+    document.getElementById('forgotStep1').style.display='none';
+    document.getElementById('forgotStep2').style.display='block';
+    document.getElementById('fpInfo').textContent = '✉️ '+result.message+' (หมดอายุใน 15 นาที)';
+  }catch(e){
+    err.textContent = '❌ '+e.message;
+  }
+}
+
+async function confirmReset(){
+  const email = document.getElementById('fpEmail').value.trim();
+  const otp = document.getElementById('fpOtp').value.trim();
+  const newPassword = document.getElementById('fpNew').value;
+  const err = document.getElementById('fpError2');
+  err.textContent='';
+  if(!otp || !newPassword){ err.textContent='กรุณากรอกข้อมูลให้ครบ'; return; }
+  if(newPassword.length<6){ err.textContent='รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'; return; }
+  err.textContent='⏳ กำลังรีเซ็ต...';
+  try{
+    await apiCall('confirm_reset', {email, otp, newPassword});
+    toast('✅ รีเซ็ตรหัสผ่านสำเร็จ');
+    showAuthForm('login');
+    document.getElementById('liEmail').value = email;
+  }catch(e){
+    err.textContent = '❌ '+e.message;
+  }
+}
+
+async function doLogout(){
+  try{ if(authToken) await apiCall('logout', {token:authToken}); }catch(e){}
+  currentUser = null;
+  authToken = '';
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  showAuthScreen();
+  toast('ออกจากระบบแล้ว');
+}
+
+function showAuthScreen(){
+  document.getElementById('authScreen').style.display='flex';
+  document.getElementById('userBadge').style.display='none';
+  loadPublicStats();
+}
+
+function hideAuthScreen(){
+  document.getElementById('authScreen').style.display='none';
+  updateUserBadge();
+  // Hide admin menu for non-admin
+  document.getElementById('adminMenuLink').style.display = currentUser?.role==='admin'?'flex':'none';
+  document.getElementById('logsMenuLink').style.display = currentUser?.role==='admin'?'flex':'none';
+  renderDashboard();
+}
+
+function updateUserBadge(){
+  if(!currentUser) return;
+  const b = document.getElementById('userBadge');
+  b.style.display='flex';
+  document.getElementById('userBadgeIcon').textContent = ROLE_ICONS[currentUser.role]||'👤';
+  document.getElementById('userBadgeName').textContent = currentUser.name+' ('+ROLE_LABELS[currentUser.role]+')';
+}
+
+function toggleUserMenu(){
+  document.getElementById('userMenu').classList.toggle('show');
+}
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.user-badge') && !e.target.closest('.user-menu')){
+    document.getElementById('userMenu')?.classList.remove('show');
+  }
+});
+
+async function loadPublicStats(){
+  const el = document.getElementById('publicStats');
+  if(!syncUrl){ el.innerHTML='<span class="small">ตั้งค่า URL เพื่อแสดงสถิติ</span>'; return; }
+  try{
+    const result = await apiGet('stats');
+    const s = result.stats;
+    el.innerHTML = `
+      <div class="ps-item"><span class="n">${s.totalUsers}</span><span class="l">ผู้ใช้ทั้งหมด</span></div>
+      <div class="ps-item"><span class="n">${s.byRole.admin}</span><span class="l">จนท.รพ.สต.</span></div>
+      <div class="ps-item"><span class="n">${s.byRole.volunteer}</span><span class="l">อสม.</span></div>
+      <div class="ps-item"><span class="n">${s.byRole.leader}</span><span class="l">ผู้นำชุมชน</span></div>
+      <div class="ps-item"><span class="n">${s.loginsToday}</span><span class="l">เข้าใช้วันนี้</span></div>
+      <div class="ps-item"><span class="n">${s.onlineNow}</span><span class="l">ออนไลน์ตอนนี้</span></div>
+    `;
+  }catch(e){
+    el.innerHTML = '<span class="small">'+e.message+'</span>';
+  }
+}
+
+async function loadDashboardStats(){
+  // Add login stats to home dashboard
+  if(!syncUrl||!currentUser) return;
+  try{
+    const result = await apiGet('stats');
+    const s = result.stats;
+    const extra = `
+      <div class="stat-item" style="background:#ecfdf5;border:1px solid var(--primary-light)"><div class="num">${s.loginsToday}</div><div class="lab">เข้าใช้วันนี้</div></div>
+      <div class="stat-item" style="background:#fef3c7"><div class="num">${s.totalLogins}</div><div class="lab">เข้าใช้รวม</div></div>
+      <div class="stat-item" style="background:#dbeafe"><div class="num">${s.onlineNow}</div><div class="lab">ออนไลน์</div></div>
+      <div class="stat-item" style="background:#fae8ff"><div class="num">${s.totalUsers}</div><div class="lab">ผู้ใช้</div></div>
+    `;
+    const target = document.getElementById('dashboardStats');
+    if(target && !target.querySelector('.stat-extra')){
+      target.insertAdjacentHTML('beforeend', '<div class="stat-extra" style="display:contents">'+extra+'</div>');
+    }
+  }catch(e){}
+}
+
+/* ============ Admin Panel ============ */
+function showAdminPanel(){
+  if(currentUser?.role!=='admin'){ alert('เฉพาะ จนท.รพ.สต. เท่านั้น'); return; }
+  document.getElementById('homeView').style.display='none';
+  document.getElementById('overviewView').style.display='none';
+  document.querySelectorAll('.tool-view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('adminView').classList.add('active');
+  loadAdminPanel();
+}
+
+function switchAdminTab(e, tab){
+  document.querySelectorAll('#adminView .tab').forEach(t=>t.classList.remove('active'));
+  e.target.classList.add('active');
+  document.getElementById('adminPendingTab').style.display = tab==='pending'?'grid':'none';
+  document.getElementById('adminAllTab').style.display = tab==='all'?'block':'none';
+}
+
+async function loadAdminPanel(){
+  try{
+    const [statsR, pendR, allR] = await Promise.all([
+      apiGet('stats'),
+      apiCall('list_pending', {token:authToken}),
+      apiCall('list_users', {token:authToken})
+    ]);
+    const s = statsR.stats;
+    document.getElementById('userStats').innerHTML = `
+      <div class="stat-item"><div class="num">${s.totalUsers}</div><div class="lab">ผู้ใช้ทั้งหมด</div></div>
+      <div class="stat-item"><div class="num">${s.pending}</div><div class="lab">รออนุมัติ</div></div>
+      <div class="stat-item"><div class="num">${s.approved}</div><div class="lab">อนุมัติแล้ว</div></div>
+      <div class="stat-item"><div class="num">${s.disabled}</div><div class="lab">ระงับใช้งาน</div></div>
+      <div class="stat-item"><div class="num">${s.loginsToday}</div><div class="lab">เข้าใช้วันนี้</div></div>
+      <div class="stat-item"><div class="num">${s.totalLogins}</div><div class="lab">เข้าใช้รวม</div></div>
+    `;
+    document.getElementById('pendingCount').textContent = s.pending>0?'('+s.pending+')':'';
+    // Pending
+    const pending = pendR.users;
+    const pendEl = document.getElementById('adminPendingTab');
+    if(pending.length===0){
+      pendEl.innerHTML = '<div class="empty-state"><div class="icon">✅</div>ไม่มีผู้รออนุมัติ</div>';
+    } else {
+      pendEl.innerHTML = pending.map(u=>`
+        <div class="item-card">
+          <h4>${ROLE_ICONS[u.role]||'👤'} ${escapeHtml(u.name)} <span class="badge">${ROLE_LABELS[u.role]}</span></h4>
+          <div class="meta">📧 ${escapeHtml(u.email)}</div>
+          ${u.phone?`<div class="meta">📞 ${escapeHtml(u.phone)}</div>`:''}
+          ${u.village?`<div class="meta">🏘️ ${escapeHtml(getVillageName(u.village))}</div>`:''}
+          <div class="meta small">สมัครเมื่อ: ${formatDate(u.createdAt)}</div>
+          <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-sm btn-primary" onclick="approveUser('${u.id}')">✓ อนุมัติ</button>
+            <button class="btn btn-sm btn-danger" onclick="rejectUser('${u.id}')">✗ ปฏิเสธ</button>
+          </div>
+        </div>
+      `).join('');
+    }
+    // All users
+    const all = allR.users;
+    const tbody = document.getElementById('allUsersTable');
+    tbody.innerHTML = all.map(u=>`
+      <tr>
+        <td>${escapeHtml(u.name)}</td>
+        <td>${escapeHtml(u.email)}</td>
+        <td>
+          <select onchange="changeRole('${u.id}', this.value)" ${u.id===currentUser.id?'disabled':''}>
+            <option value="admin" ${u.role==='admin'?'selected':''}>จนท.รพ.สต.</option>
+            <option value="volunteer" ${u.role==='volunteer'?'selected':''}>อสม.</option>
+            <option value="leader" ${u.role==='leader'?'selected':''}>ผู้นำชุมชน</option>
+          </select>
+        </td>
+        <td>${escapeHtml(getVillageName(u.village)||'-')}</td>
+        <td>${statusBadge(u.status)}</td>
+        <td class="small">${formatDate(u.lastLogin)||'-'}</td>
+        <td>${u.loginCount||0}</td>
+        <td>
+          ${u.id!==currentUser.id ? `
+            ${u.status==='approved' ? `<button class="btn btn-sm btn-danger" onclick="changeStatus('${u.id}','disabled')">ระงับ</button>` : ''}
+            ${u.status==='disabled' ? `<button class="btn btn-sm btn-primary" onclick="changeStatus('${u.id}','approved')">เปิดใช้</button>` : ''}
+            ${u.status==='pending' ? `<button class="btn btn-sm btn-primary" onclick="approveUser('${u.id}')">อนุมัติ</button>` : ''}
+          ` : '<span class="small">(คุณ)</span>'}
+        </td>
+      </tr>
+    `).join('');
+  }catch(e){
+    alert('โหลดข้อมูลไม่สำเร็จ: '+e.message);
+  }
+}
+
+function statusBadge(s){
+  const m = {approved:'pill-success', pending:'pill-warning', disabled:'pill-danger'};
+  const l = {approved:'อนุมัติ', pending:'รออนุมัติ', disabled:'ระงับ'};
+  return `<span class="pill ${m[s]||''}">${l[s]||s}</span>`;
+}
+
+function formatDate(d){
+  if(!d) return '';
+  const dt = new Date(d);
+  if(isNaN(dt)) return d;
+  return dt.toLocaleString('th-TH', {dateStyle:'short', timeStyle:'short'});
+}
+
+function getVillageName(id){
+  if(!id) return '';
+  const c = state.communities?.find(x=>x.id===id);
+  return c ? c.name : id;
+}
+
+async function approveUser(userId){
+  if(!confirm('อนุมัติผู้ใช้รายนี้?')) return;
+  try{ await apiCall('approve_user', {token:authToken, userId}); toast('✓ อนุมัติแล้ว'); loadAdminPanel(); }
+  catch(e){ alert(e.message); }
+}
+
+async function rejectUser(userId){
+  if(!confirm('ปฏิเสธ (ระงับ) ผู้ใช้รายนี้?')) return;
+  try{ await apiCall('set_status', {token:authToken, userId, status:'disabled'}); toast('ปฏิเสธแล้ว'); loadAdminPanel(); }
+  catch(e){ alert(e.message); }
+}
+
+async function changeStatus(userId, status){
+  if(!confirm('เปลี่ยนสถานะเป็น "'+status+'"?')) return;
+  try{ await apiCall('set_status', {token:authToken, userId, status}); toast('เปลี่ยนแล้ว'); loadAdminPanel(); }
+  catch(e){ alert(e.message); }
+}
+
+async function changeRole(userId, role){
+  try{ await apiCall('set_role', {token:authToken, userId, role}); toast('เปลี่ยนบทบาทแล้ว'); }
+  catch(e){ alert(e.message); loadAdminPanel(); }
+}
+
+/* ============ Logs Panel ============ */
+function showLogsPanel(){
+  if(currentUser?.role!=='admin'){ alert('เฉพาะ จนท.รพ.สต.'); return; }
+  document.getElementById('homeView').style.display='none';
+  document.getElementById('overviewView').style.display='none';
+  document.querySelectorAll('.tool-view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('logsView').classList.add('active');
+  loadLogsPanel();
+}
+
+async function loadLogsPanel(){
+  try{
+    const r = await apiCall('logs', {token:authToken, limit:200});
+    const actionLabels = {
+      login:'🟢 เข้าสู่ระบบ', logout:'🚪 ออกจากระบบ',
+      login_failed:'⚠️ เข้าผิด', register:'📝 ลงทะเบียน',
+      approve_user:'✅ อนุมัติผู้ใช้', set_status:'⚙️ เปลี่ยนสถานะ',
+      set_role:'⚙️ เปลี่ยนบทบาท', request_password_reset:'🔑 ขอรีเซ็ต',
+      password_reset_success:'✅ รีเซ็ตรหัสผ่าน', push_data:'☁️ บันทึกข้อมูล',
+      clear_data:'🗑️ ล้างข้อมูล'
+    };
+    document.getElementById('logsTable').innerHTML = r.logs.map(l=>`
+      <tr>
+        <td class="small">${formatDate(l.timestamp)}</td>
+        <td>${escapeHtml(l.email||'-')}</td>
+        <td>${ROLE_LABELS[l.role]||l.role||'-'}</td>
+        <td>${actionLabels[l.action]||l.action}</td>
+        <td class="small">${escapeHtml(l.detail||'')}</td>
+      </tr>
+    `).join('');
+  }catch(e){
+    alert(e.message);
+  }
+}
+
+/* ============ Initial auth check ============ */
+async function checkExistingSession(){
+  if(!authToken || !syncUrl){
+    showAuthScreen();
+    return false;
+  }
+  try{
+    const r = await apiCall('verify', {token:authToken});
+    currentUser = r.user;
+    hideAuthScreen();
+    return true;
+  }catch(e){
+    localStorage.removeItem(TOKEN_KEY);
+    authToken = '';
+    showAuthScreen();
+    return false;
+  }
+}
+
 /* ============ Reset ============ */
 function resetToTambon(){
   if(confirm('⚠️ ลบข้อมูลทั้งหมดและโหลด 12 หมู่บ้านของตำบลคำใหญ่ใหม่?\n(แนะนำให้ "ส่งออก" ข้อมูลปัจจุบันก่อนถ้าต้องการสำรอง)')){
@@ -2349,10 +3008,28 @@ function renderAll(){
   } else {
     showHome();
   }
+  // Add login stats to dashboard
+  if(currentUser) loadDashboardStats();
 }
 
-// init
-window.addEventListener('DOMContentLoaded', renderAll);
+// ============ Initialization ============
+async function init(){
+  // Try to restore from localStorage
+  try{
+    const u = localStorage.getItem(USER_KEY);
+    if(u) currentUser = JSON.parse(u);
+  }catch(e){}
+  // Verify session if we have a token
+  const hasSession = await checkExistingSession();
+  if(hasSession){
+    renderAll();
+  } else {
+    // Still render the app data behind the auth screen so 12 villages are seeded
+    renderCommunitySelector();
+  }
+}
+
+window.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
